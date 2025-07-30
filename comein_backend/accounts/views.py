@@ -35,26 +35,27 @@ class RegisterView(generics.CreateAPIView):
         }, status=status.HTTP_201_CREATED)
 
 
-# 🔐 LoginView authenticates user with username + password
+
+# LoginView authenticates user with email + password
 class LoginView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
-        username = request.data.get("username")
+        email = request.data.get("email")
         password = request.data.get("password")
 
-        # Authenticate using Django's auth system
-        user = authenticate(username=username, password=password)
+        # Custom authentication using email
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({"error": "User with this email does not exist."}, status=404)
 
-        if user is not None:
+        if user.check_password(password):
             refresh = RefreshToken.for_user(user)
             return Response({
-                'user': UserSerializer(user).data,
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
-            }, status=status.HTTP_200_OK)
+                "user": UserSerializer(user).data,
+                "refresh": str(refresh),
+                "access": str(refresh.access_token)
+            }, status=200)
         else:
-            return Response(
-                {"error": "Invalid username or password"},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
+            return Response({"error": "Invalid password"}, status=401)
