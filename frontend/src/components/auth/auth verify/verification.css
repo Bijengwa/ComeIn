@@ -1,0 +1,89 @@
+body {
+    margin: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f5f5dc; /* beige background */
+}
+
+.verify-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding-top: 60px;
+    min-height: 100vh;
+}
+
+.verify-container > h2 {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 40px;
+}
+
+.verify-credential {
+    background: #fff;
+    padding: 1.8rem;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    margin-bottom: 30px;
+    width: 380px;
+}
+
+.verify-credential h2 {
+    font-size: 1.4rem;
+    color: #333;
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+.verifying {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+
+.verifying input {
+    width: 90%;
+    padding: 10px;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+.verifying button {
+    width: 90%;
+    padding: 10px;
+    background: #f5f5dc;
+    border: none;
+    border-radius: 5px;
+    font-weight: bold;
+    color: #333;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.verifying button:hover {
+    background: #e2e2c4;
+}
+
+.success {
+    color: green;
+    font-weight: bold;
+    margin-top: 20px;
+}
+
+.error {
+    color: red;
+    font-weight: bold;
+    margin-top: 20px;
+}
+input:disabled,
+input.disabled {
+    background-color: #eaeaea;
+    color: #888;
+    cursor: not-allowed;
+}
+input {
+    transition: background-color 0.3s ease, color 0.3s ease;
+}

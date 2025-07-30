@@ -1,7 +1,8 @@
 import './App.css';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import Register from './components/auth/register';
-import Login from './components/auth/login'; // create this later
+import Login from './components/auth/login'; 
+import VerificationPage from './components/auth/auth verify/VerificationPage';
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/verify" element={<VerificationPage />} />
       </Routes>
     </Router>
   );

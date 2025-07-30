@@ -13,8 +13,9 @@ export default function Register() {
 
                 <form className='register-form'>
 
-                    <input type='text' className='register-input' placeholder='Username' required />
-                    <input type='email' className='register-input' placeholder='Email' required />
+                    <input type='text' className='register-input' placeholder='Full name' id='fullname' required />
+                    <input type='email' className='register-input' placeholder='Email' id='email' required />
+                    <input type='tel' className='register-input' placeholder='Phone number' id='phone' required />
 
                     <div className='password-field'>
                         <input type={showPassword ? 'text' : 'password'} className='register-input' placeholder='Password' required />
