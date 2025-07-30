@@ -1,3 +1,4 @@
+# accounts/urls.py or auth/urls.py
 from django.urls import path
 from .views import RegisterView, LoginView
 
