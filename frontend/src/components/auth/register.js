@@ -15,7 +15,6 @@ export default function Register() {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        // Basic client-side validation
         if (password !== confirmPassword) {
             setError("Passwords do not match");
             setSuccess('');
@@ -29,10 +28,11 @@ export default function Register() {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    name: fullname,
+                    full_name: fullname,
                     email: email,
                     phone_number: phone,
-                    password: password
+                    password: password,
+                    confirm_password: confirmPassword,
                 })
             });
 
@@ -41,10 +41,9 @@ export default function Register() {
             if (response.ok) {
                 setSuccess("Registration successful!");
                 setError('');
-                // You may want to redirect to login here
                 // window.location.href = '/login';
             } else {
-                setError(data.error || "Registration failed");
+                setError(data.error || JSON.stringify(data));
                 setSuccess('');
             }
         } catch (err) {
