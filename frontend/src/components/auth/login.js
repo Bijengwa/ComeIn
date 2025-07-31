@@ -25,11 +25,15 @@ export default function Login() {
             if (response.ok) {
                 setSuccess("Login successful!");
                 setError("");
-                // Optionally save token or user data
-                // localStorage.setItem("token", data.token);
-                // Redirect or update state
+
+                // Save JWT tokens (optional)
+                localStorage.setItem("accessToken", data.access);
+                localStorage.setItem("refreshToken", data.refresh);
+
+                // Redirect or change app state
+                // window.location.href = "/dashboard";
             } else {
-                setError(data.error || "Invalid credentials");
+                setError(data.detail || "Invalid credentials");
                 setSuccess("");
             }
         } catch (err) {
