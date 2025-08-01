@@ -1,89 +1,151 @@
+:root {
+  --primary-color: #84a9c0;
+  --secondary-color: #5e6d82;
+  --accent-color: #4b646f;
+  --bg-color: #c0d7ee;
+  --surface-color: #e4ecfa;
+  --text-color: #3c4a57;
+}
+
 body {
-    margin: 0;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #f5f5dc; /* beige background */
+  font-family: 'Segoe UI', sans-serif;
 }
 
 .verify-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    padding-top: 60px;
-    min-height: 100vh;
+  background-color: var(--surface-color);
+  padding: 2rem;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 600px;
+  margin: 3rem auto;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  color: var(--text-color);
 }
 
-.verify-container > h2 {
-    font-size: 2rem;
-    font-weight: bold;
-    color: #333;
-    margin-bottom: 40px;
+.verify-container h2 {
+  color: var(--primary-color);
+  text-align: center;
+  margin-bottom: 1rem;
 }
 
 .verify-credential {
-    background: #fff;
-    padding: 1.8rem;
-    border-radius: 10px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-    margin-bottom: 30px;
-    width: 380px;
+  background-color: white;
+  border: 1px solid var(--bg-color);
+  border-radius: 6px;
+  padding: 1.2rem;
+  margin-bottom: 1.5rem;
 }
 
 .verify-credential h2 {
-    font-size: 1.4rem;
-    color: #333;
-    margin-bottom: 15px;
-    text-align: center;
+  font-size: 1.1rem;
+  margin-bottom: 0.8rem;
+  color: var(--secondary-color);
 }
 
 .verifying {
-    display: flex;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.credential {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.credential input {
+  flex: 1;
+  padding: 0.6rem;
+  border: 1px solid var(--primary-color);
+  border-radius: 4px;
+}
+
+.credential input.disabled {
+  background-color: #f0f0f0;
+  cursor: not-allowed;
+}
+
+.credential button {
+  padding: 0.5rem 1rem;
+  background-color: var(--primary-color);
+  border: none;
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+}
+
+.credential button:hover {
+  background-color: var(--accent-color);
+}
+
+.code-box {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.code-box input {
+  flex: 1;
+  padding: 0.6rem;
+  border: 1px solid var(--secondary-color);
+  border-radius: 4px;
+}
+
+.resend-btn {
+  background-color: var(--secondary-color);
+  color: white;
+  padding: 0.5rem 0.9rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.resend-btn[disabled] {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+button {
+  align-self: flex-start;
+  background-color: var(--accent-color);
+  color: white;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: var(--primary-color);
+}
+
+.error-msg {
+  color: red;
+  text-align: center;
+  margin-top: 1rem;
+}
+
+.success-msg {
+  color: green;
+  text-align: center;
+  margin-top: 1rem;
+}
+
+@media (max-width: 600px) {
+  .verify-container {
+    padding: 1rem;
+  }
+
+  .credential,
+  .code-box {
     flex-direction: column;
-    align-items: center;
-    gap: 15px;
-}
+    align-items: stretch;
+  }
 
-.verifying input {
-    width: 90%;
-    padding: 10px;
-    font-size: 1rem;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-}
-
-.verifying button {
-    width: 90%;
-    padding: 10px;
-    background: #f5f5dc;
-    border: none;
-    border-radius: 5px;
-    font-weight: bold;
-    color: #333;
-    cursor: pointer;
-    transition: background 0.3s;
-}
-
-.verifying button:hover {
-    background: #e2e2c4;
-}
-
-.success {
-    color: green;
-    font-weight: bold;
-    margin-top: 20px;
-}
-
-.error {
-    color: red;
-    font-weight: bold;
-    margin-top: 20px;
-}
-input:disabled,
-input.disabled {
-    background-color: #eaeaea;
-    color: #888;
-    cursor: not-allowed;
-}
-input {
-    transition: background-color 0.3s ease, color 0.3s ease;
+  .credential button,
+  .resend-btn,
+  button {
+    width: 100%;
+  }
 }

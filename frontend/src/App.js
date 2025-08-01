@@ -1,9 +1,10 @@
 import './App.css';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Register from './components/auth/register';
 import Login from './components/auth/login'; 
 import VerificationPage from './components/auth/auth verify/VerificationPage';
 import Dashboard from './components/dashboard/dashboard.js'
+import ForgotPassword from './components/auth/forgotPassword/forgotPassword.js';
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/verify" element={<VerificationPage />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path='/forgot-password' element={<ForgotPassword />} />
       </Routes>
     </Router>
   );
