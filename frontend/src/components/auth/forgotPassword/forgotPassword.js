@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { use, useEffect, useState } from 'react';
 import './forgotPassword.css';
 
 export default function ForgotPassword() {
     const [useEmail, setUseEmail] = useState(true);
     const [inputValue, setInputValue] = useState("");
+    const [timer, setTimer] = useState(0);
+    const [success, setSuccess] = useState("");
+    const [error, setError] = useState("");
 
     const toggleMethod = () => {
         setUseEmail(!useEmail);
@@ -11,11 +14,10 @@ export default function ForgotPassword() {
     };
 
     const handleResend = () => {
-        if (useEmail) {
-            alert("Resending email...");
-        } else {
-            alert("Resending SMS...");
-        }
+        if (timer > 0) return;
+        setTimer(30);
+        setSuccess(useEmail ? "Email resent" : "SMS resent");
+        setError("");
     };
 
     const handleSubmit = (e) => {
@@ -26,6 +28,13 @@ export default function ForgotPassword() {
             console.log("Sending reset code to phone:", inputValue);
         }
     };
+
+    useEffect(() => {
+        if (timer > 0) {
+            const countdown = setInterval(() => setTimer(prev => prev - 1), 1000);
+            return () => clearInterval(countdown);
+        }
+    }, [timer]);
 
     return (
         <div className='forgot-password-container'>
@@ -58,6 +67,10 @@ export default function ForgotPassword() {
                     >
                         {useEmail ? "Resend Email" : "Resend SMS"}
                     </button>
+
+                    {error && <p className='error-message'>{error}</p>}
+                    {success && <p className='success-message'>{success}</p>}
+                    
                 </form>
             </div>
         </div>
