@@ -99,6 +99,7 @@ body {
   font-size: 15px;
   gap: 10px;
   transition: box-shadow 0.3s;
+  color: var(--text-color);
 }
 
 .google-btn:hover {
