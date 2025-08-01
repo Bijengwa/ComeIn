@@ -9,7 +9,9 @@ from .views import (
     VerifyPhoneOTPView,
     ResendVerificationView,
     SendResetLinkView
+    
 )
+from .views import ResetPasswordView,ChangePasswordView
 from rest_framework_simplejwt.views import TokenRefreshView
 
 urlpatterns = [
@@ -27,4 +29,9 @@ urlpatterns = [
     path('reset-password/', SendResetLinkView.as_view(), name='reset-password'),
 
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+
+    path('reset-password/confirm/', ResetPasswordView.as_view(), name='reset-password-confirm'),
+
+    path('change-password/', ChangePasswordView.as_view(), name="change-password"),
+
 ]

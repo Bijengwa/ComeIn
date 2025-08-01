@@ -268,3 +268,86 @@ class SendResetLinkView(APIView):
                 return Response({"error": "Phone number invalid"}, status=404)
 
         return Response({"error": "Provide phone or email"}, status=400)
+
+
+
+class ResetPasswordView(APIView):
+    def post(self, request):
+        email = request.data.get("email")
+        phone = request.data.get("phone_number")
+        new_password = request.data.get("new_password")
+        confirm_password = request.data.get("confirm_password")
+        uidb64 = request.data.get("uidb64")
+        token = request.data.get("token")
+        otp = request.data.get("otp")
+
+        if new_password != confirm_password:
+            return Response({"error": "Passwords do not match"},status=404)
+
+        
+        #if resetting via email 
+        if email and uidb64 and token:
+            try:
+                uid = force_str(urlsafe_base64_decode(uidb64))
+                user = CustomUser.objects.get(pk=uid, email=email)
+
+                if default_token_generator.check_token(user, token):
+                    user.set_password(new_password)
+                    user.save()
+                    return Response({"message": "Password reset successfully"})
+                
+                else:
+                    return Response({"error":"Invalid or expired token"}, status=404)
+
+            except CustomUser.DoesNotExit:
+                return Response({"error": "User not found"}, status=404)  
+
+
+
+        #if resetting via phone OTP
+        if phone and otp:
+            try:
+                phone_otp = PhoneOTP.objects.get(phone_number=phone, otp=otp)  
+                 
+                if phone_otp.otp == otp and not phone_otp.is_expired():
+                    user = CustomUser.objects.get(phone_number=phone) 
+                    user.set_password(new_password)
+                    user.save()
+                    return Response({"message": "password reset successfully"})
+                
+                else:
+                    return Response({"error": "Invalid or expired OTP"})
+                
+            except(phone_otp.DoesNotExist, CustomUser.DoesNotExist):    
+                return Response({"error": "User or OTP not found"}, status=404)
+            
+
+        return Response({"error": "Missing required fields"},status=400)   
+
+
+
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]    
+
+    def post(self, request):
+        user = request.user
+        current_password = request.data.get("current_password")
+        new_password = request.data.get(new_password)
+        confirm_password = request.data.get(confirm_password) 
+
+        #check if current password is correct 
+        if not user.check_password(current_password):
+            return Response({"error": "current password is incorrect"},status=400)
+        
+
+        #check if new password match
+        if new_password != confirm_password:
+            return Response({"error": "New password do not match!"},status=400)
+        
+        #set and save new password 
+        user.set_password(new_password)
+        user.save()
+
+        return Response({"messages": "password changed successfully"},status=400)
