@@ -1,119 +1,135 @@
+:root {
+  --primary-color: #84a9c0;
+  --secondary-color: #5e6d82;
+  --accent-color: #4b646f;
+  --bg-color: #c0d7ee;
+  --surface-color: #e4ecfa;
+  --text-color: #3c4a57;
+}
+
+/* Background */
 body {
-    margin: 0;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #f5f5dc;
+  margin: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
 }
 
+/* Container */
 .register-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
 }
 
-.logo {
-    font-size: 2.5rem;
-    font-weight: bold;
-    color: #333;
-    margin-bottom: 20px;
+/* Card */
+.register-card {
+  background-color: var(--surface-color);
+  padding: 2.5rem;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 450px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  text-align: center;
 }
 
-.register-form {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    width: 100%;
-    padding: 10px;
+/* Header */
+.register-card h2 {
+  margin-bottom: 1.5rem;
+  color: var(--accent-color);
 }
 
+/* Input Fields */
 .register-input {
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    font-size: 1rem;
-    width: 90%;
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 1rem;
+  border-radius: 6px;
+  border: 1px solid var(--secondary-color);
+  font-size: 1rem;
+  color: var(--text-color);
+  background-color: white;
+  box-sizing: border-box;
 }
 
+/* Password Fields with toggle */
 .password-field {
-    position: relative;
-    display: flex;
-    align-items: center;
-}
-
-.password-field input {
-    width: 100%;
-    padding-right: 35px
+  position: relative;
 }
 
 .toggle-icon {
-    position: absolute;
-    right: 10px;
-    cursor: pointer;
-    font-size: 1.2rem;
+  position: absolute;
+  right: 10px;
+  top: 11px;
+  cursor: pointer;
+  font-size: 1.1rem;
+  user-select: none;
 }
 
-.register-card {
-    background: #fff;
-    padding: 2rem;
-    border-radius: 10px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-    width: 350px;
-}
-
-.register-card h2 {
-    margin-bottom: 1.5rem;
-    color: #333;
-    font-size: 1.8rem;  
-}
-
+/* Buttons */
 .register-btn {
-    width: 40%;
-    margin-left: 90px;
-    padding: 10px;
-    background:#f5f5dc;
-    border: none;
-    border-radius: 5px;
-    font-weight: bold;
-    color: #333;
-    cursor: pointer;
-    transition: 0.3s;
+  width: 100%;
+  background-color: var(--primary-color);
+  color: white;
+  padding: 12px;
+  font-size: 1rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-top: 1rem;
+  transition: background-color 0.3s ease;
 }
 
 .register-btn:hover {
-    background: #e2e2c4;
+  background-color: var(--accent-color);
 }
 
+/* Google Button */
 .google-btn {
-    width: 100%;
-    padding: 10px;
-    background: #4285f4;
-    border: none;
-    border-radius: 5px;
-    color: white;
-    font-weight: bold;
-    cursor: pointer;
-    transition: 0.3s;
-}
-
-.google-btn img {
-    height: 20px;
-    margin-right: 10px;
+  margin-top: 1rem;
+  background-color: white;
+  border: 1px solid var(--secondary-color);
+  padding: 10px;
+  width: 100%;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: background-color 0.3s ease;
 }
 
 .google-btn:hover {
-    background: #f7f7f7;
+  background-color: var(--bg-color);
 }
 
+/* Link Text */
 .login-link {
-    margin-top: 20px;
-    font-size: 0.9rem
+  margin-top: 1.2rem;
+  font-size: 0.95rem;
 }
 
 .login-link a {
-    color: #007bff;
-    text-decoration: none;
+  color: var(--accent-color);
+  text-decoration: none;
 }
+
 .login-link a:hover {
-    text-decoration: underline;
+  text-decoration: underline;
+}
+
+/* Messages */
+.error-message {
+  color: crimson;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.success-message {
+  color: seagreen;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
 }

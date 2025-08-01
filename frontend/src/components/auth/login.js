@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+
 import "./login.css";
 
 export default function Login() {
@@ -7,9 +9,13 @@ export default function Login() {
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
+    const navigate = useNavigate();
+    const [loading, setLoading] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setLoading(true);
+
 
         try {
             const response = await fetch("http://127.0.0.1:8000/api/auth/login/", {
@@ -40,6 +46,11 @@ export default function Login() {
             setError("Login failed. Please try again.");
             setSuccess("");
         }
+
+    };
+
+    const handleForgotPassword = () => {
+        navigate("/forgot-password");
     };
 
     return (
@@ -77,9 +88,13 @@ export default function Login() {
                         >
                             {showPassword ? "🙈" : "👁️"}
                         </span>
+                        <button type="button" className="forgot-password-btn" onClick={handleForgotPassword}>
+                            Forgot Password?
+                        </button>
                     </div>
 
-                    <button type="submit" className="login-btn">Login</button>
+                    <button type="submit" className="login-btn" disabled={loading}>{loading ? "Loading..." : "Submit"}</button>
+                    {loading && <p className="loading-message">Logging in...</p>}
                 </form>
 
                 <button className="google-btn">
