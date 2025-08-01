@@ -19,28 +19,25 @@ from .models import CustomUser, PhoneOTP
 from .serializers import UserSerializer
 
 User = get_user_model()
-
-#  Global setting for failed login limit
 MAX_FAILED_ATTEMPTS = 5
 
 
-#  Handles user registration and sends email + OTP
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
+        # Handle new user registration and send verification
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
         user = serializer.save()
-        user.is_active = False
+        user.is_active = False  # Prevent login before verification
         user.save()
 
-        # Send both email and phone OTP if available
         if user.email:
             self.send_verification_email(user)
+
         if user.phone_number:
             self.send_phone_otp(user.phone_number)
 
@@ -49,6 +46,7 @@ class RegisterView(generics.CreateAPIView):
         }, status=status.HTTP_201_CREATED)
 
     def send_verification_email(self, user):
+        # Send an email with verification link
         token = default_token_generator.make_token(user)
         uid = urlsafe_base64_encode(force_bytes(user.pk))
         link = f"{settings.FRONTEND_URL}/verify-email/{uid}/{token}/"
@@ -62,19 +60,38 @@ class RegisterView(generics.CreateAPIView):
         )
 
     def send_phone_otp(self, phone_number):
+        # Create or update OTP record for the given phone
         otp, _ = PhoneOTP.objects.get_or_create(phone_number=phone_number)
         otp.otp = str(random.randint(100000, 999999))
         otp.created_at = timezone.now()
         otp.is_verified = False
         otp.save()
 
-        # TODO: Integrate SMS API like Infobip or Twilio
         print(f"DEBUG OTP to {phone_number}: {otp.otp}")
 
 
-# Verifies email using the token and uid
+class SendPhoneOTPView(APIView):
+    def post(self, request):
+        # Send or resend OTP manually to a phone number
+        phone_number = request.data.get("phone_number")
+
+        if not phone_number:
+            return Response({"error": "Phone number is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        otp_obj, _ = PhoneOTP.objects.get_or_create(phone_number=phone_number)
+        otp_obj.otp = str(random.randint(100000, 999999))
+        otp_obj.created_at = timezone.now()
+        otp_obj.is_verified = False
+        otp_obj.save()
+
+        print(f"DEBUG OTP sent to {phone_number}: {otp_obj.otp}")
+
+        return Response({"message": "OTP sent successfully."}, status=status.HTTP_200_OK)
+
+
 class VerifyEmailView(APIView):
     def get(self, request, uidb64, token):
+        # Verify email using uid and token
         try:
             uid = force_str(urlsafe_base64_decode(uidb64))
             user = CustomUser.objects.get(pk=uid)
@@ -86,17 +103,19 @@ class VerifyEmailView(APIView):
             user.is_active = True
             user.save()
             return Response({"message": "Email verified!"}, status=200)
+
         return Response({"error": "Invalid or expired token"}, status=400)
 
 
-# Verifies phone OTP
 class VerifyPhoneOTPView(APIView):
     def post(self, request):
+        # Confirm if the given OTP is valid for the phone number
         phone = request.data.get("phone_number")
         otp = request.data.get("otp")
 
         try:
             phone_otp = PhoneOTP.objects.get(phone_number=phone)
+
             if phone_otp.otp == otp and not phone_otp.is_expired():
                 phone_otp.is_verified = True
                 phone_otp.save()
@@ -107,15 +126,17 @@ class VerifyPhoneOTPView(APIView):
                 user.save()
 
                 return Response({"message": "Phone number verified!"})
+
             return Response({"error": "Invalid or expired OTP"}, status=400)
+
         except PhoneOTP.DoesNotExist:
             return Response({"error": "OTP not sent or phone number not found"}, status=404)
 
 
-#  Serializer that includes custom JWT claims
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
+        # Extend JWT with additional user info
         token = super().get_token(user)
         token["email"] = user.email
         token["full_name"] = user.full_name
@@ -123,11 +144,11 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         return token
 
 
-#Login view with account lock + verification checks
 class LoginView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
     def post(self, request, *args, **kwargs):
+        # Authenticate user and issue JWT tokens
         email = request.data.get("email")
         password = request.data.get("password")
 
@@ -147,7 +168,6 @@ class LoginView(TokenObtainPairView):
         if not user.is_verified:
             return Response({"error": "Verify email or phone first"}, status=403)
 
-        # Reset failed login count on success
         user.failed_login_attempts = 0
         user.save()
 
@@ -159,11 +179,11 @@ class LoginView(TokenObtainPairView):
         })
 
 
-#  Allows users to logout and blacklist their refresh token
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        # Logout by blacklisting the refresh token
         try:
             refresh_token = request.data.get("refresh")
             token = RefreshToken(refresh_token)
@@ -173,11 +193,11 @@ class LogoutView(APIView):
             return Response({"error": str(e)}, status=400)
 
 
-#  View for authenticated dashboard
 class DashboardView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        # Return dashboard data for logged-in user
         user = request.user
         return Response({
             "message": "Welcome to your dashboard!",
@@ -188,9 +208,9 @@ class DashboardView(APIView):
         })
 
 
-#  Resends email or OTP depending on user contact
 class ResendVerificationView(APIView):
     def post(self, request):
+        # Allow user to resend verification email or phone OTP
         email = request.data.get("email")
         phone = request.data.get("phone_number")
 
@@ -213,9 +233,9 @@ class ResendVerificationView(APIView):
         return Response({"error": "Provide email or phone_number"}, status=400)
 
 
-#  Sends OTP or email to reset password
 class SendResetLinkView(APIView):
     def post(self, request):
+        # Send password reset email or OTP to phone
         email = request.data.get("email")
         phone = request.data.get("phone_number")
 
@@ -225,6 +245,7 @@ class SendResetLinkView(APIView):
                 token = default_token_generator.make_token(user)
                 uid = urlsafe_base64_encode(force_bytes(user.pk))
                 link = f"{settings.FRONTEND_URL}/reset-password/{uid}/{token}/"
+
                 send_mail(
                     subject="Reset your password",
                     message=f"Click to reset password: {link}",
