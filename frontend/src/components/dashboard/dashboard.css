@@ -1,0 +1,99 @@
+:root {
+  --primary-color: #84a9c0;
+  --secondary-color: #5e6d82;
+  --accent-color: #4b646f;
+  --bg-color: #c0d7ee;
+  --surface-color: #e4ecfa;
+  --text-color: #3c4a57;
+}
+
+.dashboard-container {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-color);
+  height: 100vh;
+}
+
+.welcoming-top {
+  display: flex;
+  align-items: center;
+  height: 60px;
+  background-color: var(--surface-color);
+  border-bottom: 1px solid var(--accent-color);
+}
+
+#inspiration-note {
+  color: var(--secondary-color);
+  font-style: italic;
+  font-size: 14px;
+  margin-left: auto;
+}
+
+.body-container {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--primary-color);
+  transition: width 0.3s ease;
+  height: 95%;
+  padding: 10px 0;
+}
+
+.sidebar.wide {
+  width: 120px;
+}
+
+.sidebar.thin {
+  width: 50px;
+}
+
+.sidebar-toggle {
+  font-size: 1.5rem;
+  cursor: pointer;
+  margin-right: 15px;
+}
+
+.top-ul,
+.bottom-ul {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0;
+}
+
+.top-li,
+.bottom-li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: white;
+  padding: 10px 15px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.top-li:hover,
+.bottom-li:hover {
+  background-color: var(--accent-color);
+}
+
+.icon {
+  font-size: 18px;
+}
+
+.profile-icon {
+  font-size: 24px;
+}
+
+.main-content {
+  flex: 1;
+  background-color: white;
+  padding: 20px;
+  overflow-y: auto;
+}

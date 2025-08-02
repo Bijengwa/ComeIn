@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+
 import './verification.css';
 
 export default function VerificationPage() {
@@ -10,9 +12,11 @@ export default function VerificationPage() {
     const [canEditEmail, setCanEditEmail] = useState(false);
     const [success, setSuccess] = useState('');
     const [error, setError] = useState('');
-
     const [phoneTimer, setPhoneTimer] = useState(0);
     const [emailTimer, setEmailTimer] = useState(0);
+    const [isPhoneVerified, setIsPhoneVerified] = useState(false);
+    const [isEmailVerified, setIsEmailVerified] = useState(false);
+    const navigate = useNavigate();
 
     // Countdown effects
     useEffect(() => {
@@ -29,6 +33,14 @@ export default function VerificationPage() {
         }
     }, [emailTimer]);
 
+    useEffect(() => {
+    const storedEmail = localStorage.getItem("verify_email");
+    const storedPhone = localStorage.getItem("verify_phone");
+
+    if (storedEmail) setEmail(storedEmail);
+    if (storedPhone) setPhone(storedPhone);
+    }, []);
+
     const handleVerify = async (type) => {
         try {
             const response = await fetch('/api/auth/verify', {
@@ -39,10 +51,20 @@ export default function VerificationPage() {
                     target: type
                 }),
             });
+
             const data = await response.json();
+
             if (response.ok) {
                 setSuccess(data.message);
                 setError('');
+
+                if (type === 'phone') {
+                    localStorage.removeItem('verify_phone');
+                }
+                if (type === 'email') {
+                    localStorage.removeItem('verify_email');
+                }
+
             } else {
                 setError(data.error);
                 setSuccess('');
@@ -89,6 +111,14 @@ export default function VerificationPage() {
         }
     };
 
+    useEffect(() => {
+        if (isPhoneVerified && isEmailVerified) {
+            setTimeout(() => {
+                navigate('/dashboard');
+            }, 1500)
+        }
+    }, [isPhoneVerified, isEmailVerified, navigate]);
+
     return (
         <div className='verify-container'>
             <h2>Verify Your Account</h2>
@@ -100,7 +130,7 @@ export default function VerificationPage() {
                     <div className='credential' >
                         <input
                             type='text'
-                            placeholder='Enter phone number'
+                            placeholder={canEditPhone ? "Edit phone number" : "Phone number used in registration"}
                             value={phone}
                             disabled={!canEditPhone}
                             onChange={(e) => setPhone(e.target.value)}
@@ -134,7 +164,7 @@ export default function VerificationPage() {
                     <div className='credential'>
                     <input
                         type='text'
-                        placeholder='Enter email address'
+                        placeholder={canEditEmail ? "Edit email address" : "Email used in registration"}
                         value={email}
                         disabled={!canEditEmail}
                         onChange={(e) => setEmail(e.target.value)}

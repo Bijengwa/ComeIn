@@ -1,7 +1,9 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "./register.css";
 
 export default function Register() {
+  const navigate = useNavigate();
   const [fullname, setFullname] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -41,7 +43,11 @@ export default function Register() {
       if (response.ok) {
         setSuccess("Registration successful!");
         setError("");
-        // window.location.href = '/login';
+
+        localStorage.setItem("verify_email", email);
+        localStorage.setItem("verify_phone", phone);
+
+        navigate("/verify");
       } else {
         setError(data.error || JSON.stringify(data));
         setSuccess("");

@@ -35,9 +35,9 @@ export default function Login() {
                 // Save JWT tokens (optional)
                 localStorage.setItem("accessToken", data.access);
                 localStorage.setItem("refreshToken", data.refresh);
+                localStorage.setItem("useFullName", data.FullName);
 
-                // Redirect or change app state
-                // window.location.href = "/dashboard";
+                navigate("/dashboard");
             } else {
                 setError(data.detail || "Invalid credentials");
                 setSuccess("");

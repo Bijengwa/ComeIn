@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import './ResetPassword.css';
 
 export default function ResetPassword() {
@@ -8,6 +9,11 @@ export default function ResetPassword() {
     const [showConfirm, setShowConfirm] = useState(false);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState(false);
+    
+
+    const location = useLocation();
+    const queryParams = new URLSearchParams(location.search);
+    const token = queryParams.get("token");
 
     useEffect(() => {
         if (confirmPassword && password !== confirmPassword) {
@@ -18,7 +24,7 @@ export default function ResetPassword() {
         }
     }, [password, confirmPassword]);
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
 
         if (password.length < 6) {
@@ -33,10 +39,29 @@ export default function ResetPassword() {
             return;
         }
 
-        setSuccess("✅Password reset successfully!");
-        setError("");
-        setPassword("");
-        setConfirmPassword("");
+        try {
+            const response = await fetch("http://127.0.0.1:8000/api/auth/reset-password-confirm/", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ token, password })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                setSuccess("✅Password reset successfully!");
+                setError("");
+                setPassword("");
+                setConfirmPassword("");
+            } else {
+                setError(data.detail || "An error occurred. Please try again.");
+                setSuccess("");
+            }
+        } catch (error) {
+            setError("Network error. Please try again later.");
+            setSuccess("");
+        }
+
     };
 
     return (
