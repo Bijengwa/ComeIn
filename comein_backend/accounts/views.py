@@ -14,6 +14,7 @@ from django.conf import settings
 from django.db.models import F
 from django.utils import timezone
 import random
+import africastalking
 
 from .models import CustomUser, PhoneOTP
 from .serializers import UserSerializer
@@ -69,7 +70,13 @@ class RegisterView(generics.CreateAPIView):
 
         print(f"DEBUG OTP to {phone_number}: {otp.otp}")
 
-
+#initialize Africa's Talking SDK once using the settings.py credentials 
+africastalking.initialize(
+    username=settings.AFRICASTALKING_USERNAME,
+    api_key= settings.AFRICASTALKING_API_KEY
+)
+ 
+sms = africastalking.SMS
 class SendPhoneOTPView(APIView):
     def post(self, request):
         # Send or resend OTP manually to a phone number
@@ -84,10 +91,20 @@ class SendPhoneOTPView(APIView):
         otp_obj.is_verified = False
         otp_obj.save()
 
-        print(f"DEBUG OTP sent to {phone_number}: {otp_obj.otp}")
+        #international format of phone number
+        if phone_number.startwith("0"):
+            phone_number = "+255" +phone_number[1:]
 
-        return Response({"message": "OTP sent successfully."}, status=status.HTTP_200_OK)
+        try:
+            sms.send(
+                message=f"your OTP is {otp_obj.otp}",
+                recepients=[phone_number]
+            )    
 
+            return Response({"message": "OTP sent successfully."}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error":str(e)},status=status.HTTP_500_INTERNAL_SERVER_ERROR) 
 
 class VerifyEmailView(APIView):
     def get(self, request, uidb64, token):

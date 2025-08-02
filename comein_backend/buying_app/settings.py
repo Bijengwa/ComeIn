@@ -121,6 +121,10 @@ REST_FRAMEWORK = {
     ),
 }
 
+#Africa's Talking settings
+AFRICASTALKING_USERNAME = "sandbox"
+AFRICASTALKING_API_KEY = "atsk_94e6e85607118ade091e220d90c961c02b45f96903e52951f2694a2a56aeb399d0149c77"
+
 # JWT configuration for handling tokens
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),  # Token expires in 5 minutes
