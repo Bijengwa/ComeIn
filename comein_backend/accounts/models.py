@@ -32,11 +32,13 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True)
     full_name = models.CharField(max_length=255)  # Changed from 'name'
     phone_number = models.CharField(max_length=20, unique=True)  # New field
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=False)
     is_verified = models.BooleanField(default=False)  # To track OTP/email verification
     failed_login_attempts = models.IntegerField(default=0)
     is_locked = models.BooleanField(default=False)
     date_joined = models.DateTimeField(auto_now_add=True)
+    is_staff = models.BooleanField(default=False)
+
 
     objects = CustomUserManager()
 

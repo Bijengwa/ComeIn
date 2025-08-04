@@ -7,29 +7,27 @@ class CustomUserAdmin(BaseUserAdmin):
     #model = CustomUser
     #columns in the users list page
     list_display = ('email', 'full_name', 'phone_number', 'is_verified','is_active', 'is_staff' )
-    list_filter = ('is_verified', 'is_active', 'is_staff', 'is_superuser')
+    list_filter = ('is_verified', 'is_active', 'is_superuser')
 
     #Grouped fields in the user edit page
     fieldsets = (
         (None, {'fields': ('email', 'password')}),
-        (_("personal_info"), {'fields': ("full_name", "phone_number")}),
-        (_("Verification"), {'fields': ('is_verified'),}),
-        (_("Permissions"), {'fields': ('is_active', 'is_staff', 'is_superuser',)}),
+        (_("personal_info"), {"fields": ("full_name", "phone_number")}),
+        (_("Verification"), {'fields': ('is_verified',)}),
+        (_("Permissions"), {"fields": ("is_active","is_staff",  "is_superuser")}),
         (_("Important_dates"), {'fields': ('last_login', 'date_joined')}),
-
-
-    )
+   )
 
     #Fields shown when adding a new user from admin 
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            "fields": ("email", "full_name", "phone_number", "password","confirm_passord", "is_active", "is_verified"),
+            "fields": ("email", "full_name", "phone_number", "password","confirm_passord", "is_active", "is_verified", "is_staff"),
         })
     )
 
     
-    search_fields = ("email", "full_name", "phone_number"),
+    search_fields = ("email", "full_name", "phone_number")
     ordering = ('email',)
 
     actions = ["activate_and_verify_users", "deactivate_users","mark_verified", "clear_failed_logins"]
@@ -71,7 +69,7 @@ class PhoneOTPAdmin(admin.ModelAdmin):
     #show otp entries for trouble shooting
     list_display = ('phone_number','otp','is_verified','created_at')
     list_filter = ("is_verified","created_at")
-    search_fields =("phone_number")
+    search_fields =("phone_number"),
     actions = ['mark_otp_verified']
 
 
