@@ -18,6 +18,13 @@ class CustomUserManager(BaseUserManager):
     def create_superuser(self, email, password=None, **extra_fields):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
+        extra_fields.setdefault("is_active", True)
+        extra_fields.setdefault("is_verified", True)
+
+        if not extra_fields.get("full_name"):
+            raise ValueError("superuser must have a full name")
+        if not extra_fields.get("phone_number"):
+            raise ValueError("superuser must have a phone_number")
         return self.create_user(email, password, **extra_fields)
 
 # Custom user model
@@ -29,6 +36,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     is_verified = models.BooleanField(default=False)  # To track OTP/email verification
     failed_login_attempts = models.IntegerField(default=0)
     is_locked = models.BooleanField(default=False)
+    date_joined = models.DateTimeField(auto_now_add=True)
 
     objects = CustomUserManager()
 
@@ -53,3 +61,5 @@ class PhoneOTP(models.Model):
         self.created_at = timezone.now()
         self.is_verified = False
         self.save()
+
+

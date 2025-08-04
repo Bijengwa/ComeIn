@@ -5,6 +5,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
@@ -13,6 +14,7 @@ from django.contrib.auth import get_user_model
 from django.conf import settings
 from django.db.models import F
 from django.utils import timezone
+
 import random
 import africastalking
 
@@ -23,17 +25,31 @@ User = get_user_model()
 MAX_FAILED_ATTEMPTS = 5
 
 
+def maybe_activate_user(user):
+    # Activate account only when email is verified and phone OTP is verified
+    phone_ok = False
+    if user.phone_number:
+        phone_ok = PhoneOTP.objects.filter(
+            phone_number=user.phone_number,
+            is_verified=True
+        ).exists()
+
+    if user.is_verified and phone_ok and not user.is_active:
+        user.is_active = True
+        user.save()
+
+
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
-        # Handle new user registration and send verification
+        # Create user, mark inactive, and send both email link and phone OTP if provided
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        user.is_active = False  # Prevent login before verification
+        user.is_active = False
         user.save()
 
         if user.email:
@@ -42,12 +58,13 @@ class RegisterView(generics.CreateAPIView):
         if user.phone_number:
             self.send_phone_otp(user.phone_number)
 
-        return Response({
-            "message": "Account created. Verify email or phone to activate account."
-        }, status=status.HTTP_201_CREATED)
+        return Response(
+            {"message": "Account created. Verify email and phone to activate account."},
+            status=status.HTTP_201_CREATED
+        )
 
     def send_verification_email(self, user):
-        # Send an email with verification link
+        # Build and send an email verification link containing uid and token
         token = default_token_generator.make_token(user)
         uid = urlsafe_base64_encode(force_bytes(user.pk))
         link = f"{settings.FRONTEND_URL}/verify-email/{uid}/{token}/"
@@ -61,25 +78,27 @@ class RegisterView(generics.CreateAPIView):
         )
 
     def send_phone_otp(self, phone_number):
-        # Create or update OTP record for the given phone
+        # Generate or refresh a 6-digit OTP and persist it for the given phone
         otp, _ = PhoneOTP.objects.get_or_create(phone_number=phone_number)
         otp.otp = str(random.randint(100000, 999999))
         otp.created_at = timezone.now()
         otp.is_verified = False
         otp.save()
-
+        # For dev visibility; real SMS is sent in SendPhoneOTPView
         print(f"DEBUG OTP to {phone_number}: {otp.otp}")
 
-#initialize Africa's Talking SDK once using the settings.py credentials 
+
+# Initialize Africa's Talking SDK once using settings.py credentials
 africastalking.initialize(
     username=settings.AFRICASTALKING_USERNAME,
-    api_key= settings.AFRICASTALKING_API_KEY
+    api_key=settings.AFRICASTALKING_API_KEY
 )
- 
 sms = africastalking.SMS
+
+
 class SendPhoneOTPView(APIView):
     def post(self, request):
-        # Send or resend OTP manually to a phone number
+        # Generate OTP and send via Africa's Talking SMS API
         phone_number = request.data.get("phone_number")
 
         if not phone_number:
@@ -91,42 +110,43 @@ class SendPhoneOTPView(APIView):
         otp_obj.is_verified = False
         otp_obj.save()
 
-        #international format of phone number
-        if phone_number.startwith("0"):
-            phone_number = "+255" +phone_number[1:]
+        # Convert local TZ number (07..., 06...) to E.164 (+255...)
+        if phone_number.startswith("0"):
+            phone_number = "+255" + phone_number[1:]
 
         try:
+            # Send SMS with the OTP to the destination number
             sms.send(
-                message=f"your OTP is {otp_obj.otp}",
-                recepients=[phone_number]
-            )    
-
+                message=f"Your OTP is {otp_obj.otp}",
+                recipients=[phone_number]
+            )
             return Response({"message": "OTP sent successfully."}, status=status.HTTP_200_OK)
-
         except Exception as e:
-            return Response({"error":str(e)},status=status.HTTP_500_INTERNAL_SERVER_ERROR) 
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 class VerifyEmailView(APIView):
     def get(self, request, uidb64, token):
-        # Verify email using uid and token
+        # Decode the uid, find the user, validate token, then mark email verified
         try:
             uid = force_str(urlsafe_base64_decode(uidb64))
             user = CustomUser.objects.get(pk=uid)
         except (TypeError, ValueError, OverflowError, CustomUser.DoesNotExist):
-            return Response({"error": "Invalid link"}, status=400)
+            return Response({"error": "Invalid link"}, status=status.HTTP_400_BAD_REQUEST)
 
         if default_token_generator.check_token(user, token):
-            user.is_verified = True
-            user.is_active = True
+            user.is_verified = True  # email verified
             user.save()
-            return Response({"message": "Email verified!"}, status=200)
+            # Try activation only after email is verified; phone must also be verified
+            maybe_activate_user(user)
+            return Response({"message": "Email verified!"}, status=status.HTTP_200_OK)
 
-        return Response({"error": "Invalid or expired token"}, status=400)
+        return Response({"error": "Invalid or expired token"}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class VerifyPhoneOTPView(APIView):
     def post(self, request):
-        # Confirm if the given OTP is valid for the phone number
+        # Validate OTP for the provided phone and, if valid, attempt activation
         phone = request.data.get("phone_number")
         otp = request.data.get("otp")
 
@@ -138,26 +158,25 @@ class VerifyPhoneOTPView(APIView):
                 phone_otp.save()
 
                 user = CustomUser.objects.get(phone_number=phone)
-                user.is_verified = True
-                user.is_active = True
-                user.save()
+                # Email verification is tracked with user.is_verified, so we just attempt activation here
+                maybe_activate_user(user)
 
-                return Response({"message": "Phone number verified!"})
+                return Response({"message": "Phone number verified!"}, status=status.HTTP_200_OK)
 
-            return Response({"error": "Invalid or expired OTP"}, status=400)
+            return Response({"error": "Invalid or expired OTP"}, status=status.HTTP_400_BAD_REQUEST)
 
         except PhoneOTP.DoesNotExist:
-            return Response({"error": "OTP not sent or phone number not found"}, status=404)
+            return Response({"error": "OTP not sent or phone number not found"}, status=status.HTTP_404_NOT_FOUND)
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
-        # Extend JWT with additional user info
+        # Add extra user fields to the JWT payload for convenience on the client
         token = super().get_token(user)
         token["email"] = user.email
-        token["full_name"] = user.full_name
-        token["phone_number"] = user.phone_number
+        token["full_name"] = getattr(user, "full_name", "")
+        token["phone_number"] = getattr(user, "phone_number", "")
         return token
 
 
@@ -165,69 +184,76 @@ class LoginView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
     def post(self, request, *args, **kwargs):
-        # Authenticate user and issue JWT tokens
+        # Authenticate by email/password, enforce lockout, and require activation before issuing tokens
         email = request.data.get("email")
         password = request.data.get("password")
 
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
-            return Response({"error": "Invalid credentials"}, status=401)
+            return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
 
         if user.failed_login_attempts >= MAX_FAILED_ATTEMPTS:
-            return Response({"error": "Account locked. Too many failed attempts."}, status=403)
+            return Response({"error": "Account locked. Too many failed attempts."}, status=status.HTTP_403_FORBIDDEN)
 
         if not user.check_password(password):
             user.failed_login_attempts = F("failed_login_attempts") + 1
-            user.save()
-            return Response({"error": "Invalid credentials"}, status=401)
+            user.save(update_fields=["failed_login_attempts"])
+            return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
 
-        if not user.is_verified:
-            return Response({"error": "Verify email or phone first"}, status=403)
+        if not user.is_active:
+            return Response({"error": "Account not active. Complete email and phone verification."},
+                            status=status.HTTP_403_FORBIDDEN)
 
         user.failed_login_attempts = 0
-        user.save()
+        user.save(update_fields=["failed_login_attempts"])
 
         refresh = RefreshToken.for_user(user)
-        return Response({
-            "user": UserSerializer(user).data,
-            "refresh": str(refresh),
-            "access": str(refresh.access_token),
-        })
+        return Response(
+            {
+                "user": UserSerializer(user).data,
+                "refresh": str(refresh),
+                "access": str(refresh.access_token),
+            },
+            status=status.HTTP_200_OK
+        )
 
 
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        # Logout by blacklisting the refresh token
+        # Blacklist the provided refresh token to log the user out
         try:
             refresh_token = request.data.get("refresh")
             token = RefreshToken(refresh_token)
             token.blacklist()
-            return Response({"message": "Logged out successfully"})
+            return Response({"message": "Logged out successfully"}, status=status.HTTP_200_OK)
         except Exception as e:
-            return Response({"error": str(e)}, status=400)
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class DashboardView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        # Return dashboard data for logged-in user
+        # Return simple profile data for the authenticated user
         user = request.user
-        return Response({
-            "message": "Welcome to your dashboard!",
-            "user": {
-                "email": user.email,
-                "full_name": user.full_name,
-            }
-        })
+        return Response(
+            {
+                "message": "Welcome to your dashboard!",
+                "user": {
+                    "email": user.email,
+                    "full_name": getattr(user, "full_name", ""),
+                }
+            },
+            status=status.HTTP_200_OK
+        )
 
 
 class ResendVerificationView(APIView):
     def post(self, request):
-        # Allow user to resend verification email or phone OTP
+        # Resend either email verification link or phone OTP based on payload
         email = request.data.get("email")
         phone = request.data.get("phone_number")
 
@@ -235,24 +261,24 @@ class ResendVerificationView(APIView):
             try:
                 user = User.objects.get(email=email)
                 RegisterView().send_verification_email(user)
-                return Response({"message": "Verification email sent"})
+                return Response({"message": "Verification email sent"}, status=status.HTTP_200_OK)
             except User.DoesNotExist:
-                return Response({"error": "User not found"}, status=404)
+                return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        elif phone:
+        if phone:
             try:
                 user = User.objects.get(phone_number=phone)
                 RegisterView().send_phone_otp(phone)
-                return Response({"message": "OTP resent"})
+                return Response({"message": "OTP resent"}, status=status.HTTP_200_OK)
             except User.DoesNotExist:
-                return Response({"error": "User not found"}, status=404)
+                return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        return Response({"error": "Provide email or phone_number"}, status=400)
+        return Response({"error": "Provide email or phone_number"}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class SendResetLinkView(APIView):
     def post(self, request):
-        # Send password reset email or OTP to phone
+        # Initiate password reset via email link or phone OTP
         email = request.data.get("email")
         phone = request.data.get("phone_number")
 
@@ -267,29 +293,31 @@ class SendResetLinkView(APIView):
                     subject="Reset your password",
                     message=f"Click to reset password: {link}",
                     from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[user.email]
+                    recipient_list=[user.email],
+                    fail_silently=False,
                 )
-                return Response({"message": "Reset link sent to email"})
+                return Response({"message": "Reset link sent to email"}, status=status.HTTP_200_OK)
             except User.DoesNotExist:
-                return Response({"error": "Email not found"}, status=404)
+                return Response({"error": "Email not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        elif phone:
+        if phone:
             try:
                 otp, _ = PhoneOTP.objects.get_or_create(phone_number=phone)
                 otp.otp = str(random.randint(100000, 999999))
                 otp.created_at = timezone.now()
+                otp.is_verified = False
                 otp.save()
                 print(f"DEBUG RESET OTP for {phone}: {otp.otp}")
-                return Response({"message": "Reset OTP sent to phone"})
+                return Response({"message": "Reset OTP sent to phone"}, status=status.HTTP_200_OK)
             except Exception:
-                return Response({"error": "Phone number invalid"}, status=404)
+                return Response({"error": "Phone number invalid"}, status=status.HTTP_400_BAD_REQUEST)
 
-        return Response({"error": "Provide phone or email"}, status=400)
-
+        return Response({"error": "Provide phone or email"}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ResetPasswordView(APIView):
     def post(self, request):
+        # Complete password reset using either email token or phone OTP
         email = request.data.get("email")
         phone = request.data.get("phone_number")
         new_password = request.data.get("new_password")
@@ -299,72 +327,51 @@ class ResetPasswordView(APIView):
         otp = request.data.get("otp")
 
         if new_password != confirm_password:
-            return Response({"error": "Passwords do not match"},status=404)
+            return Response({"error": "Passwords do not match"}, status=status.HTTP_400_BAD_REQUEST)
 
-        
-        #if resetting via email 
         if email and uidb64 and token:
             try:
                 uid = force_str(urlsafe_base64_decode(uidb64))
                 user = CustomUser.objects.get(pk=uid, email=email)
-
                 if default_token_generator.check_token(user, token):
                     user.set_password(new_password)
                     user.save()
-                    return Response({"message": "Password reset successfully"})
-                
-                else:
-                    return Response({"error":"Invalid or expired token"}, status=404)
+                    return Response({"message": "Password reset successfully via email"}, status=status.HTTP_200_OK)
+                return Response({"error": "Invalid or expired token"}, status=status.HTTP_400_BAD_REQUEST)
+            except CustomUser.DoesNotExist:
+                return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
-            except CustomUser.DoesNotExit:
-                return Response({"error": "User not found"}, status=404)  
-
-
-
-        #if resetting via phone OTP
         if phone and otp:
             try:
-                phone_otp = PhoneOTP.objects.get(phone_number=phone, otp=otp)  
-                 
+                phone_otp = PhoneOTP.objects.get(phone_number=phone)
                 if phone_otp.otp == otp and not phone_otp.is_expired():
-                    user = CustomUser.objects.get(phone_number=phone) 
+                    user = CustomUser.objects.get(phone_number=phone)
                     user.set_password(new_password)
                     user.save()
-                    return Response({"message": "password reset successfully"})
-                
-                else:
-                    return Response({"error": "Invalid or expired OTP"})
-                
-            except(phone_otp.DoesNotExist, CustomUser.DoesNotExist):    
-                return Response({"error": "User or OTP not found"}, status=404)
-            
+                    return Response({"message": "Password reset successfully via phone"}, status=status.HTTP_200_OK)
+                return Response({"error": "Invalid or expired OTP"}, status=status.HTTP_400_BAD_REQUEST)
+            except (PhoneOTP.DoesNotExist, CustomUser.DoesNotExist):
+                return Response({"error": "User or OTP not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        return Response({"error": "Missing required fields"},status=400)   
-
-
-
+        return Response({"error": "Missing required fields"}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ChangePasswordView(APIView):
-    permission_classes = [IsAuthenticated]    
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        # Allow logged-in users to change password using their current password
         user = request.user
         current_password = request.data.get("current_password")
-        new_password = request.data.get(new_password)
-        confirm_password = request.data.get(confirm_password) 
+        new_password = request.data.get("new_password")
+        confirm_password = request.data.get("confirm_password")
 
-        #check if current password is correct 
         if not user.check_password(current_password):
-            return Response({"error": "current password is incorrect"},status=400)
-        
+            return Response({"error": "Current password is incorrect"}, status=status.HTTP_400_BAD_REQUEST)
 
-        #check if new password match
         if new_password != confirm_password:
-            return Response({"error": "New password do not match!"},status=400)
-        
-        #set and save new password 
+            return Response({"error": "New passwords do not match"}, status=status.HTTP_400_BAD_REQUEST)
+
         user.set_password(new_password)
         user.save()
-
-        return Response({"messages": "password changed successfully"},status=400)
+        return Response({"message": "Password changed successfully"}, status=status.HTTP_200_OK)
