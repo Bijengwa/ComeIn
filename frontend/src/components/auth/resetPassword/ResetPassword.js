@@ -8,8 +8,8 @@ export default function ResetPassword() {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
     const [error, setError] = useState("");
-    const [success, setSuccess] = useState(false);
-    
+    const [success, setSuccess] = useState("");
+    const [loading, setLoading] = useState(false);
 
     const location = useLocation();
     const queryParams = new URLSearchParams(location.search);
@@ -17,7 +17,7 @@ export default function ResetPassword() {
 
     useEffect(() => {
         if (confirmPassword && password !== confirmPassword) {
-            setError("Passwords do not match");
+            setError("❌ Passwords do not match");
             setSuccess("");
         } else {
             setError("");
@@ -28,16 +28,20 @@ export default function ResetPassword() {
         e.preventDefault();
 
         if (password.length < 6) {
-            setError("Password must be at least 6 characters long");
+            setError("❌ Password must be at least 6 characters long");
             setSuccess("");
             return;
         }
 
         if (password !== confirmPassword) {
-            setError("Passwords do not match");
+            setError("❌ Passwords do not match");
             setSuccess("");
             return;
         }
+
+        setLoading(true);
+        setError("");
+        setSuccess("");
 
         try {
             const response = await fetch("http://127.0.0.1:8000/api/auth/reset-password-confirm/", {
@@ -48,20 +52,18 @@ export default function ResetPassword() {
 
             const data = await response.json();
 
-            if (!response.ok) {
-                setSuccess("✅Password reset successfully!");
-                setError("");
+            if (response.ok) {
+                setSuccess("✅ Password reset successfully!");
                 setPassword("");
                 setConfirmPassword("");
             } else {
-                setError(data.detail || "An error occurred. Please try again.");
-                setSuccess("");
+                setError(`❌ ${data.detail || "Something went wrong. Try again."}`);
             }
-        } catch (error) {
-            setError("Network error. Please try again later.");
-            setSuccess("");
+        } catch (err) {
+            setError("⚠️ Unable to connect to server. Please try again later.");
+        } finally {
+            setLoading(false);
         }
-
     };
 
     return (
@@ -70,6 +72,7 @@ export default function ResetPassword() {
 
             {error && <p className="error-message">{error}</p>}
             {success && <p className="success-message">{success}</p>}
+            {loading && <p className="loading-message">⏳ Processing...</p>}
 
             <form onSubmit={handleSubmit}>
                 <div className="password-field">
@@ -83,9 +86,9 @@ export default function ResetPassword() {
                     <span
                         onClick={() => setShowPassword(!showPassword)}
                         className="toggle-password"
-                        >
+                    >
                         {showPassword ? "🙈" : "👁️"}
-                        </span>
+                    </span>
                 </div>
 
                 <div className="password-field">
@@ -99,14 +102,15 @@ export default function ResetPassword() {
                     <span 
                         onClick={() => setShowConfirm(!showConfirm)}
                         className="toggle-password"
-                    > {showConfirm ? '🙈' : '👁️'} </span>
+                    >
+                        {showConfirm ? '🙈' : '👁️'}
+                    </span>
                 </div>
 
-                <button type="submit" className="reset-button">
-                    Reset Password 
+                <button type="submit" className="reset-button" disabled={loading}>
+                    {loading ? "Resetting..." : "Reset Password"}
                 </button>
             </form>
         </div>
-
-    )
+    );
 }
