@@ -21,13 +21,34 @@ import africastalking
 
 from .models import CustomUser, PhoneOTP
 from .serializers import UserSerializer
+def maybe_activate_user(user):
+    # Activate user account if both email and phone number are verified 
+    phone_ok = False
+
+    #check if phone number is verified 
+    if user.phone_number:
+        phone_ok = PhoneOTP.objects.filter(
+            phone_number=user.phone_number,
+            is_verified=True
+        ).exists()
+    
+    # activate if both email and phone are verified 
+    if user.is_verified and phone_ok and not user.is_active:
+        user.is_active = True
+        user.save()
+        print(f" ✅ User {user.email} activated successfully.")
+
+    else:
+        print("⚠️ Activation skipped: either email or phone not verified or already active.")    
+
+
 
 User = get_user_model()
 MAX_FAILED_ATTEMPTS = 5
 
 
 def maybe_activate_user(user):
-    # Activate account only when email is verified and phone OTP is verified
+    # Activate the 
     phone_ok = False
     if user.phone_number:
         phone_ok = PhoneOTP.objects.filter(
@@ -78,7 +99,7 @@ class RegisterView(generics.CreateAPIView):
         
         #catch duplicate entries(like existing  phone number or email )
         except IntegrityError:
-            return Response({"error": "phone number or email already registered"}, status=status.HTTP_400)
+            return Response({"error": "phone number or email already registered"}, status=status.HTTP_400_BAD_REQUEST)
 
     def send_verification_email(self, user):
         # Build and send an email verification link containing uid and token
@@ -107,7 +128,8 @@ class RegisterView(generics.CreateAPIView):
             phone_number = "+255" + phone_number[1:]
 
             #remove spaces 
-            phone_number = phone_number.replace("", "")
+            phone_number = phone_number.replace(" ", "")
+
 
         try:
             sms.send(
@@ -146,13 +168,14 @@ class SendPhoneOTPView(APIView):
             phone_number = "+255" + phone_number[1:]
 
             #remove spaces
-            phone_number = phone_number.replace("", "")
+            phone_number = phone_number.replace(" ", "")
+
 
         try:
             # Send SMS with the OTP to the destination number
             sms.send(
                 message=f"Your OTP is {otp_obj.otp}",
-                recipients=[phone_number]
+                to=[phone_number]
             )
             return Response({"message": "OTP sent successfully."}, status=status.HTTP_200_OK)
         except Exception as e:
@@ -184,19 +207,32 @@ class VerifyPhoneOTPView(APIView):
         phone = request.data.get("phone_number")
         otp = request.data.get("otp")
 
+        #basic validation
+        if not phone or not otp:
+            return Response({"error": "Phone number and OTP are required."}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
+            # Retrieve the OTP record from the database
             phone_otp = PhoneOTP.objects.get(phone_number=phone)
 
+            # check if the OTP matches and not expired             
             if phone_otp.otp == otp and not phone_otp.is_expired():
                 phone_otp.is_verified = True
                 phone_otp.save()
+                
+                try:
+                    # Try to find the user by phone number
+                    user = CustomUser.objects.get(phone_number=phone)
+                    
+                    #attempts user activation if both phone and email are verified 
+                    maybe_activate_user(user)
 
-                user = CustomUser.objects.get(phone_number=phone)
-                # Email verification is tracked with user.is_verified, so we just attempt activation here
-                maybe_activate_user(user)
-
-                return Response({"message": "Phone number verified!"}, status=status.HTTP_200_OK)
-
+                    return Response({"message": "Phone number verified successfully!"}, status=status.HTTP_200_OK)
+                
+                except CustomUser.DoesNotExist:
+                    return Response({"error":"user with this phone number does not exist"},status=status.HTTP_404_NOT_FOUND)
+            
+            #if OTP is 
             return Response({"error": "Invalid or expired OTP"}, status=status.HTTP_400_BAD_REQUEST)
 
         except PhoneOTP.DoesNotExist:
