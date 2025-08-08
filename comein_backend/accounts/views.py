@@ -13,6 +13,7 @@ from django.utils.encoding import force_bytes, force_str
 from django.contrib.auth import get_user_model
 from django.conf import settings
 from django.db.models import F
+from django.db import IntegrityError
 from django.utils import timezone
 
 import random
@@ -38,30 +39,46 @@ def maybe_activate_user(user):
         user.is_active = True
         user.save()
 
-
+#view for handling user registration email + phone verification 
 class RegisterView(generics.CreateAPIView):
+    #set queryset and serializer for this view 
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
-        # Create user, mark inactive, and send both email link and phone OTP if provided
+        # create a serializer instance with incoming data
         serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-        user.is_active = False
-        user.save()
 
-        if user.email:
-            self.send_verification_email(user)
+        try:
+            #validate serializer data(raise exception if data is invalid)
+            serializer.is_valid(raise_exception=True)
 
-        if user.phone_number:
-            self.send_phone_otp(user.phone_number)
+            #save the user instance (creates the user)
+            user = serializer.save()
 
-        return Response(
-            {"message": "Account created. Verify email and phone to activate account."},
-            status=status.HTTP_201_CREATED
-        )
+            #mark the user as inactive until email and phone are verified 
+            user.is_active = False
+
+            user.save()
+
+            #send email verification link if email is provided 
+            if user.email:
+              self.send_verification_email(user)
+
+            #send phone OTP if phone number is provided 
+            if user.phone_number:
+               self.send_phone_otp(user.phone_number)
+            
+            #return sucess response to frontend 
+            return Response(
+                {"message": "Account created. Verify email and phone to activate account."},
+                status=status.HTTP_201_CREATED
+            )
+        
+        #catch duplicate entries(like existing  phone number or email )
+        except IntegrityError:
+            return Response({"error": "phone number or email already registered"}, status=status.HTTP_400)
 
     def send_verification_email(self, user):
         # Build and send an email verification link containing uid and token
@@ -84,8 +101,22 @@ class RegisterView(generics.CreateAPIView):
         otp.created_at = timezone.now()
         otp.is_verified = False
         otp.save()
-        # For dev visibility; real SMS is sent in SendPhoneOTPView
-        print(f"DEBUG OTP to {phone_number}: {otp.otp}")
+        
+        #convert to international format 
+        if phone_number.startswith("0"):
+            phone_number = "+255" + phone_number[1:]
+
+            #remove spaces 
+            phone_number = phone_number.replace("", "")
+
+        try:
+            sms.send(
+                message = f"Your OTP is {otp.otp}",
+                recipients =[phone_number]
+            )  
+
+        except Exception as e:
+            print(f"Error  sending SMS {e}")      
 
 
 # Initialize Africa's Talking SDK once using settings.py credentials
@@ -113,6 +144,9 @@ class SendPhoneOTPView(APIView):
         # Convert local TZ number (07..., 06...) to E.164 (+255...)
         if phone_number.startswith("0"):
             phone_number = "+255" + phone_number[1:]
+
+            #remove spaces
+            phone_number = phone_number.replace("", "")
 
         try:
             # Send SMS with the OTP to the destination number
