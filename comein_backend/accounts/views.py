@@ -16,11 +16,43 @@ from django.db.models import F
 from django.db import IntegrityError
 from django.utils import timezone
 
+
 import random
 import africastalking
+import re
 
 from .models import CustomUser, PhoneOTP
 from .serializers import UserSerializer
+
+User = get_user_model()
+MAX_FAILED_ATTEMPTS = 5
+
+#africa's talking initializaion
+africastalking.initialize(
+    username=settings.AFRICASTALKING_USERNAME,
+    api_key=settings.AFRICASTALKING_API_KEY
+)
+sms = africastalking.SMS
+
+#helper function to normalize phone numbers to E.164 format 
+def normalize_msisdn(phone_number: str): 
+
+    # Convert local Tz numbers(07/06/255/+255) to E.164, strip spaces/dashes
+    phone = (phone_number or "").strip().replace("", "").replace("-","")
+
+    #keep digits, allow leading +
+    if phone.startswith("+255"):
+        return phone
+    
+    if phone.startswith("255"):
+        return f"+{phone}"
+    
+    if phone.startswith(("06","07","08","09")) and len(phone)>=10:
+        return "+255" + phone[1:]
+    return phone
+
+
+
 def maybe_activate_user(user):
     # Activate user account if both email and phone number are verified 
     phone_ok = False
@@ -41,24 +73,6 @@ def maybe_activate_user(user):
     else:
         print("⚠️ Activation skipped: either email or phone not verified or already active.")    
 
-
-
-User = get_user_model()
-MAX_FAILED_ATTEMPTS = 5
-
-
-def maybe_activate_user(user):
-    # Activate the 
-    phone_ok = False
-    if user.phone_number:
-        phone_ok = PhoneOTP.objects.filter(
-            phone_number=user.phone_number,
-            is_verified=True
-        ).exists()
-
-    if user.is_verified and phone_ok and not user.is_active:
-        user.is_active = True
-        user.save()
 
 #view for handling user registration email + phone verification 
 class RegisterView(generics.CreateAPIView):
@@ -105,7 +119,9 @@ class RegisterView(generics.CreateAPIView):
         # Build and send an email verification link containing uid and token
         token = default_token_generator.make_token(user)
         uid = urlsafe_base64_encode(force_bytes(user.pk))
-        link = f"{settings.FRONTEND_URL}/verify-email/{uid}/{token}/"
+        #link to the frontend where user can verify email 
+        #link = f"{settings.BACKEND_URL}/api/auth/verify-email/{uid}/{token}"
+        link = f"{settings.BACKEND_URL}/api/auth/verify-email/{uid}/{token}/"
 
         send_mail(
             subject="Verify your email",
@@ -122,60 +138,43 @@ class RegisterView(generics.CreateAPIView):
         otp.created_at = timezone.now()
         otp.is_verified = False
         otp.save()
+
+        formatted_number = normalize_msisdn(phone_number)
         
-        #convert to international format 
-        if phone_number.startswith("0"):
-            phone_number = "+255" + phone_number[1:]
-
-        #remove spaces 
-        phone_number = phone_number.replace(" ", "")
-
-
+       
         try:
-            sms.send(
+            resp = sms.send(
                 message = f"Your OTP is {otp.otp}",
-                recipients =[phone_number]
-            )  
+                recipients =[formatted_number]
+            ) 
+            #debug print the response
+            print("AT resp(register):", resp) 
 
         except Exception as e:
             print(f"Error  sending SMS {e}")      
-
-
-# Initialize Africa's Talking SDK once using settings.py credentials
-africastalking.initialize(
-    username=settings.AFRICASTALKING_USERNAME,
-    api_key=settings.AFRICASTALKING_API_KEY
-)
-sms = africastalking.SMS
-
 
 class SendPhoneOTPView(APIView):
     def post(self, request):
         # Generate OTP and send via Africa's Talking SMS API
         phone_number = request.data.get("phone_number")
 
+        # basic validation for phone number   
         if not phone_number:
             return Response({"error": "Phone number is required."}, status=status.HTTP_400_BAD_REQUEST)
-
+        
         otp_obj, _ = PhoneOTP.objects.get_or_create(phone_number=phone_number)
         otp_obj.otp = str(random.randint(100000, 999999))
         otp_obj.created_at = timezone.now()
         otp_obj.is_verified = False
         otp_obj.save()
 
-        # Convert local TZ number (07..., 06...) to E.164 (+255...)
-        if phone_number.startswith("0"):
-            phone_number = "+255" + phone_number[1:]
-
-            #remove spaces
-        phone_number = phone_number.replace(" ", "")
-
+        formatted_number = normalize_msisdn(phone_number)
 
         try:
             # Send SMS with the OTP to the destination number
             sms.send(
                 message=f"Your OTP is {otp_obj.otp}",
-                recipients=[phone_number]
+                recipients=[formatted_number]
             )
             return Response({"message": "OTP sent successfully."}, status=status.HTTP_200_OK)
         except Exception as e:
