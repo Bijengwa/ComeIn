@@ -127,8 +127,8 @@ class RegisterView(generics.CreateAPIView):
         if phone_number.startswith("0"):
             phone_number = "+255" + phone_number[1:]
 
-            #remove spaces 
-            phone_number = phone_number.replace(" ", "")
+        #remove spaces 
+        phone_number = phone_number.replace(" ", "")
 
 
         try:
@@ -168,14 +168,14 @@ class SendPhoneOTPView(APIView):
             phone_number = "+255" + phone_number[1:]
 
             #remove spaces
-            phone_number = phone_number.replace(" ", "")
+        phone_number = phone_number.replace(" ", "")
 
 
         try:
             # Send SMS with the OTP to the destination number
             sms.send(
                 message=f"Your OTP is {otp_obj.otp}",
-                to=[phone_number]
+                recipients=[phone_number]
             )
             return Response({"message": "OTP sent successfully."}, status=status.HTTP_200_OK)
         except Exception as e:
