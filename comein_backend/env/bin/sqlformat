@@ -1,4 +1,4 @@
-#!/home/anacrethus-alto/Documents/projects/django/comein_backend/env/bin/python3
+#!/home/anacrethus-alto/Documents/projects/django/ComeIn/comein_backend/env/bin/python3
 # -*- coding: utf-8 -*-
 import re
 import sys

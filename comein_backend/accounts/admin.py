@@ -11,19 +11,19 @@ class CustomUserAdmin(BaseUserAdmin):
 
     #Grouped fields in the user edit page
     fieldsets = (
-        (None, {'fields': ('email', 'password')}),
+        (None, {"fields": ("email", "password")}),
         (_("personal_info"), {"fields": ("full_name", "phone_number")}),
-        (_("Verification"), {'fields': ('is_verified',)}),
+        (_("Verification"), {"fields": ("is_verified",)}),
         (_("Permissions"), {"fields": ("is_active","is_staff",  "is_superuser")}),
-        (_("Important_dates"), {'fields': ('last_login', 'date_joined')}),
+        (_("Important_dates"), {"fields": ("last_login", "date_joined")}),
    )
 
     #Fields shown when adding a new user from admin 
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            "fields": ("email", "full_name", "phone_number", "password","confirm_passord", "is_active", "is_verified", "is_staff"),
-        })
+            "fields": ("email", "full_name", "phone_number", "password1","password2", "is_active", "is_verified", "is_staff"),
+        }),
     )
 
     

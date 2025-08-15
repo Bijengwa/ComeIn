@@ -13,10 +13,13 @@ from django.utils.encoding import force_bytes, force_str
 from django.contrib.auth import get_user_model
 from django.conf import settings
 from django.db.models import F
+from django.db import IntegrityError
 from django.utils import timezone
+
 
 import random
 import africastalking
+import re
 
 from .models import CustomUser, PhoneOTP
 from .serializers import UserSerializer
@@ -24,50 +27,101 @@ from .serializers import UserSerializer
 User = get_user_model()
 MAX_FAILED_ATTEMPTS = 5
 
+#africa's talking initializaion
+africastalking.initialize(
+    username=settings.AFRICASTALKING_USERNAME,
+    api_key=settings.AFRICASTALKING_API_KEY
+)
+sms = africastalking.SMS
+
+#helper function to normalize phone numbers to E.164 format 
+def normalize_msisdn(phone_number: str): 
+
+    # Convert local Tz numbers(07/06/255/+255) to E.164, strip spaces/dashes
+    phone = (phone_number or "").strip().replace("", "").replace("-","")
+
+    #keep digits, allow leading +
+    if phone.startswith("+255"):
+        return phone
+    
+    if phone.startswith("255"):
+        return f"+{phone}"
+    
+    if phone.startswith(("06","07","08","09")) and len(phone)>=10:
+        return "+255" + phone[1:]
+    return phone
+
+
 
 def maybe_activate_user(user):
-    # Activate account only when email is verified and phone OTP is verified
+    # Activate user account if both email and phone number are verified 
     phone_ok = False
+
+    #check if phone number is verified 
     if user.phone_number:
         phone_ok = PhoneOTP.objects.filter(
             phone_number=user.phone_number,
             is_verified=True
         ).exists()
-
+    
+    # activate if both email and phone are verified 
     if user.is_verified and phone_ok and not user.is_active:
         user.is_active = True
         user.save()
+        print(f" ✅ User {user.email} activated successfully.")
+
+    else:
+        print("⚠️ Activation skipped: either email or phone not verified or already active.")    
 
 
+#view for handling user registration email + phone verification 
 class RegisterView(generics.CreateAPIView):
+    #set queryset and serializer for this view 
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
-        # Create user, mark inactive, and send both email link and phone OTP if provided
+        # create a serializer instance with incoming data
         serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-        user.is_active = False
-        user.save()
 
-        if user.email:
-            self.send_verification_email(user)
+        try:
+            #validate serializer data(raise exception if data is invalid)
+            serializer.is_valid(raise_exception=True)
 
-        if user.phone_number:
-            self.send_phone_otp(user.phone_number)
+            #save the user instance (creates the user)
+            user = serializer.save()
 
-        return Response(
-            {"message": "Account created. Verify email and phone to activate account."},
-            status=status.HTTP_201_CREATED
-        )
+            #mark the user as inactive until email and phone are verified 
+            user.is_active = False
+
+            user.save()
+
+            #send email verification link if email is provided 
+            if user.email:
+              self.send_verification_email(user)
+
+            #send phone OTP if phone number is provided 
+            if user.phone_number:
+               self.send_phone_otp(user.phone_number)
+            
+            #return sucess response to frontend 
+            return Response(
+                {"message": "Account created. Verify email and phone to activate account."},
+                status=status.HTTP_201_CREATED
+            )
+        
+        #catch duplicate entries(like existing  phone number or email )
+        except IntegrityError:
+            return Response({"error": "phone number or email already registered"}, status=status.HTTP_400_BAD_REQUEST)
 
     def send_verification_email(self, user):
         # Build and send an email verification link containing uid and token
         token = default_token_generator.make_token(user)
         uid = urlsafe_base64_encode(force_bytes(user.pk))
-        link = f"{settings.FRONTEND_URL}/verify-email/{uid}/{token}/"
+        #link to the frontend where user can verify email 
+        #link = f"{settings.BACKEND_URL}/api/auth/verify-email/{uid}/{token}"
+        link = f"{settings.BACKEND_URL}/api/auth/verify-email/{uid}/{token}/"
 
         send_mail(
             subject="Verify your email",
@@ -84,41 +138,43 @@ class RegisterView(generics.CreateAPIView):
         otp.created_at = timezone.now()
         otp.is_verified = False
         otp.save()
-        # For dev visibility; real SMS is sent in SendPhoneOTPView
-        print(f"DEBUG OTP to {phone_number}: {otp.otp}")
 
+        formatted_number = normalize_msisdn(phone_number)
+        
+       
+        try:
+            resp = sms.send(
+                message = f"Your OTP is {otp.otp}",
+                recipients =[formatted_number]
+            ) 
+            #debug print the response
+            print("AT resp(register):", resp) 
 
-# Initialize Africa's Talking SDK once using settings.py credentials
-africastalking.initialize(
-    username=settings.AFRICASTALKING_USERNAME,
-    api_key=settings.AFRICASTALKING_API_KEY
-)
-sms = africastalking.SMS
-
+        except Exception as e:
+            print(f"Error  sending SMS {e}")      
 
 class SendPhoneOTPView(APIView):
     def post(self, request):
         # Generate OTP and send via Africa's Talking SMS API
         phone_number = request.data.get("phone_number")
 
+        # basic validation for phone number   
         if not phone_number:
             return Response({"error": "Phone number is required."}, status=status.HTTP_400_BAD_REQUEST)
-
+        
         otp_obj, _ = PhoneOTP.objects.get_or_create(phone_number=phone_number)
         otp_obj.otp = str(random.randint(100000, 999999))
         otp_obj.created_at = timezone.now()
         otp_obj.is_verified = False
         otp_obj.save()
 
-        # Convert local TZ number (07..., 06...) to E.164 (+255...)
-        if phone_number.startswith("0"):
-            phone_number = "+255" + phone_number[1:]
+        formatted_number = normalize_msisdn(phone_number)
 
         try:
             # Send SMS with the OTP to the destination number
             sms.send(
                 message=f"Your OTP is {otp_obj.otp}",
-                recipients=[phone_number]
+                recipients=[formatted_number]
             )
             return Response({"message": "OTP sent successfully."}, status=status.HTTP_200_OK)
         except Exception as e:
@@ -150,19 +206,32 @@ class VerifyPhoneOTPView(APIView):
         phone = request.data.get("phone_number")
         otp = request.data.get("otp")
 
+        #basic validation
+        if not phone or not otp:
+            return Response({"error": "Phone number and OTP are required."}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
+            # Retrieve the OTP record from the database
             phone_otp = PhoneOTP.objects.get(phone_number=phone)
 
+            # check if the OTP matches and not expired             
             if phone_otp.otp == otp and not phone_otp.is_expired():
                 phone_otp.is_verified = True
                 phone_otp.save()
+                
+                try:
+                    # Try to find the user by phone number
+                    user = CustomUser.objects.get(phone_number=phone)
+                    
+                    #attempts user activation if both phone and email are verified 
+                    maybe_activate_user(user)
 
-                user = CustomUser.objects.get(phone_number=phone)
-                # Email verification is tracked with user.is_verified, so we just attempt activation here
-                maybe_activate_user(user)
-
-                return Response({"message": "Phone number verified!"}, status=status.HTTP_200_OK)
-
+                    return Response({"message": "Phone number verified successfully!"}, status=status.HTTP_200_OK)
+                
+                except CustomUser.DoesNotExist:
+                    return Response({"error":"user with this phone number does not exist"},status=status.HTTP_404_NOT_FOUND)
+            
+            #if OTP is 
             return Response({"error": "Invalid or expired OTP"}, status=status.HTTP_400_BAD_REQUEST)
 
         except PhoneOTP.DoesNotExist:

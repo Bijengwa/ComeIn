@@ -92,7 +92,8 @@ EMAIL_HOST_PASSWORD = 'gnravinldjotxrks'  # Use app password or environment vari
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 # URL where email verification should point (e.g. your React frontend)
-FRONTEND_URL = 'http://localhost:3000'
+#FRONTEND_URL = 'http://localhost:3000'
+BACKEND_URL = 'http://localhost:8000'
 
 # Password validators to enforce strong password rules
 AUTH_PASSWORD_VALIDATORS = [
@@ -122,8 +123,8 @@ REST_FRAMEWORK = {
 }
 
 #Africa's Talking settings
-AFRICASTALKING_USERNAME = "sandbox"
-AFRICASTALKING_API_KEY = "atsk_94e6e85607118ade091e220d90c961c02b45f96903e52951f2694a2a56aeb399d0149c77"
+AFRICASTALKING_USERNAME = "ComeInSMS"
+AFRICASTALKING_API_KEY = "atsk_2b1e61e1e8208304fd4f4ecec7ec015614fee23347f0c305fa45ce0fb1058e335f293255"
 
 # JWT configuration for handling tokens
 SIMPLE_JWT = {
