@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { FaEye, FaEyeSlash } from "react-icons/fa";
 
 import "./login.css";
 
@@ -45,6 +46,8 @@ export default function Login() {
         } catch (err) {
             setError("Login failed. Please try again.");
             setSuccess("");
+        } finally {
+            setLoading(false);
         }
 
     };
@@ -86,7 +89,7 @@ export default function Login() {
                             className="toggle-icon"
                             onClick={() => setShowPassword(!showPassword)}
                         >
-                            {showPassword ? "🙈" : "👁️"}
+                            {showPassword ? <FaEyeSlash /> : <FaEye />}
                         </span>
                         <button type="button" className="forgot-password-btn" onClick={handleForgotPassword}>
                             Forgot Password?

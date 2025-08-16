@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { FaEye, FaEyeSlash } from "react-icons/fa";
 import "./register.css";
 
 export default function Register() {
@@ -13,9 +14,11 @@ export default function Register() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
 
     if (password !== confirmPassword) {
       setError("Passwords do not match");
@@ -55,6 +58,8 @@ export default function Register() {
     } catch (err) {
       setError("Something went wrong. Please try again.");
       setSuccess("");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -105,7 +110,7 @@ export default function Register() {
               className="toggle-icon"
               onClick={() => setShowPassword(!showPassword)}
             >
-              {showPassword ? "🙈" : "👁️"}
+              {showPassword ? <FaEyeSlash /> : <FaEye />}
             </span>
           </div>
 
@@ -122,12 +127,12 @@ export default function Register() {
               className="toggle-icon"
               onClick={() => setShowConfirmPassword(!showConfirmPassword)}
             >
-              {showConfirmPassword ? "🙈" : "👁️"}
+              {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
             </span>
           </div>
 
-          <button type="submit" className="register-btn">
-            Register
+          <button type="submit" className="register-btn" disabled={loading}>
+            {loading ? "Loading..." : "Register"}
           </button>
         </form>
 

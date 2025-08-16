@@ -6,7 +6,6 @@ import VerificationPage from './components/auth/auth verify/VerificationPage';
 import Dashboard from './components/dashboard/dashboard.js'
 import ForgotPassword from './components/auth/forgotPassword/forgotPassword.js';
 import ResetPassword from './components/auth/resetPassword/ResetPassword.js';
-import AdminLogin from './components/auth/admin/AdminLogin.js';
 
 function App() {
   return (
@@ -19,7 +18,6 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path='/forgot-password' element={<ForgotPassword />} />
         <Route path='/reset-password' element={<ResetPassword />} />
-        <Route path='/admin' element={<AdminLogin />} />
       </Routes>
     </Router>
   );
