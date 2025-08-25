@@ -17,7 +17,6 @@ export default function Login() {
         e.preventDefault();
         setLoading(true);
 
-
         try {
             const response = await fetch("http://127.0.0.1:8000/api/auth/login/", {
                 method: "POST",
@@ -33,14 +32,14 @@ export default function Login() {
                 setSuccess("Login successful!");
                 setError("");
 
-                // Save JWT tokens (optional)
+                // Save JWT tokens and user info
                 localStorage.setItem("accessToken", data.access);
                 localStorage.setItem("refreshToken", data.refresh);
-                localStorage.setItem("useFullName", data.FullName);
+                localStorage.setItem("userFullName", data.user.full_name); 
 
                 navigate("/dashboard");
             } else {
-                setError(data.detail || "Invalid credentials");
+                setError(data.error || "Invalid credentials"); 
                 setSuccess("");
             }
         } catch (err) {
@@ -49,7 +48,6 @@ export default function Login() {
         } finally {
             setLoading(false);
         }
-
     };
 
     const handleForgotPassword = () => {
