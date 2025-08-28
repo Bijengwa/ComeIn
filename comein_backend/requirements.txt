@@ -3,9 +3,21 @@ asgiref==3.9.1
 certifi==2025.8.3
 charset-normalizer==3.4.2
 Django==5.2.5
+<<<<<<< HEAD
+django-cors-headers==4.7.0
+djangorestframework==3.16.0
+djangorestframework_simplejwt==5.5.1
+idna==3.10
+PyJWT==2.10.1
+requests==2.32.4
+schema==0.7.7
+sqlparse==0.5.3
+tzdata==2025.2
+=======
 djangorestframework==3.16.1
 idna==3.10
 requests==2.32.4
 schema==0.7.7
 sqlparse==0.5.3
+>>>>>>> a1f7d11fcc848758029a2e78229c23168e0f6452
 urllib3==2.5.0

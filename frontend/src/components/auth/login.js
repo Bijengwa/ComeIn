@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { FaEye, FaEyeSlash } from "react-icons/fa";
 
 import "./login.css";
 
@@ -16,7 +17,6 @@ export default function Login() {
         e.preventDefault();
         setLoading(true);
 
-
         try {
             const response = await fetch("http://127.0.0.1:8000/api/auth/login/", {
                 method: "POST",
@@ -32,21 +32,22 @@ export default function Login() {
                 setSuccess("Login successful!");
                 setError("");
 
-                // Save JWT tokens (optional)
+                // Save JWT tokens and user info
                 localStorage.setItem("accessToken", data.access);
                 localStorage.setItem("refreshToken", data.refresh);
-                localStorage.setItem("useFullName", data.FullName);
+                localStorage.setItem("userFullName", data.user.full_name); 
 
                 navigate("/dashboard");
             } else {
-                setError(data.detail || "Invalid credentials");
+                setError(data.error || "Invalid credentials"); 
                 setSuccess("");
             }
         } catch (err) {
             setError("Login failed. Please try again.");
             setSuccess("");
+        } finally {
+            setLoading(false);
         }
-
     };
 
     const handleForgotPassword = () => {
@@ -86,7 +87,7 @@ export default function Login() {
                             className="toggle-icon"
                             onClick={() => setShowPassword(!showPassword)}
                         >
-                            {showPassword ? "🙈" : "👁️"}
+                            {showPassword ? <FaEyeSlash /> : <FaEye />}
                         </span>
                         <button type="button" className="forgot-password-btn" onClick={handleForgotPassword}>
                             Forgot Password?
