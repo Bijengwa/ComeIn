@@ -92,8 +92,8 @@ EMAIL_HOST_PASSWORD = 'gnravinldjotxrks'  # Use app password or environment vari
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 # URL where email verification should point (e.g. your React frontend)
-#FRONTEND_URL = 'http://localhost:3000'
-BACKEND_URL = 'http://localhost:8000'
+FRONTEND_URL = 'http://localhost:3000'
+#BACKEND_URL = 'http://localhost:8000'
 
 # Password validators to enforce strong password rules
 AUTH_PASSWORD_VALIDATORS = [
